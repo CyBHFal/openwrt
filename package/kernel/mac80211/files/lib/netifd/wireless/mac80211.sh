@@ -464,6 +464,26 @@ mac80211_check_ap() {
 	has_ap=1
 }
 
+mac80211_get_driver_name() {
+	local ifname="$1"
+
+	echo "$(basename $(readlink -f /sys/class/net/$ifname/device/driver/module) 2>/dev/null)"
+}
+
+mac80211_is_buggy_driver() {
+	local ifname="$1"
+
+	case "$(mac80211_get_driver_name "$ifname")" in
+		88x2bu)
+			echo "true"
+			return 0
+			;;
+	esac
+
+	echo "false"
+	return 1
+}
+
 mac80211_iw_interface_add() {
 	local phy="$1"
 	local ifname="$2"
@@ -471,17 +491,25 @@ mac80211_iw_interface_add() {
 	local wdsflag="$4"
 	local rc
 	local oldifname
+	local buggy="false"
 
-	iw phy "$phy" interface add "$ifname" type "$type" $wdsflag >/dev/null 2>&1
-	rc="$?"
-
-	[ "$rc" = 233 ] && {
-		# Device might have just been deleted, give the kernel some time to finish cleaning it up
-		sleep 1
-
+	if ! mac80211_is_buggy_driver "$ifname"; then
 		iw phy "$phy" interface add "$ifname" type "$type" $wdsflag >/dev/null 2>&1
 		rc="$?"
-	}
+
+		[ "$rc" = 233 ] && {
+			# Device might have just been deleted, give the kernel some time to finish cleaning it up
+			sleep 1
+
+			iw phy "$phy" interface add "$ifname" type "$type" $wdsflag >/dev/null 2>&1
+			rc="$?"
+		}
+	else
+		# Interface can't be deleted so it need to be updated
+		# Simulate failure
+		rc="233"
+		buggy="true"
+	fi
 
 	[ "$rc" = 233 ] && {
 		# Keep matching pre-existing interface
@@ -503,9 +531,15 @@ mac80211_iw_interface_add() {
 				[ "$type" = "monitor" ] && rc=0
 				;;
 		esac
+
+		# Try to change the type of the pre-existing interface
+		if [  "$rc" != 0 ]; then
+			iw dev $ifname set type "$type"
+			rc="$?"
+		fi
 	}
 
-	[ "$rc" = 233 ] && {
+	[ "$rc" = 233 ] && ! "$buggy" && {
 		iw dev "$ifname" del >/dev/null 2>&1
 		[ "$?" = 0 ] && {
 			sleep 1
@@ -625,16 +659,17 @@ mac80211_setup_supplicant() {
 	local enable=$1
 	local add_sp=0
 	local spobj="$(ubus -S list | grep wpa_supplicant.${ifname})"
+	local buggy="$(mac80211_is_buggy_driver "$ifname")"
 
 	[ "$enable" = 0 ] && {
 		ubus call wpa_supplicant.${phy} config_remove "{\"iface\":\"$ifname\"}"
 		ip link set dev "$ifname" down
-		iw dev "$ifname" del
+		! "$buggy" && iw dev "$ifname" del
 		return 0
 	}
 
 	wpa_supplicant_prepare_interface "$ifname" nl80211 || {
-		iw dev "$ifname" del
+		! "$buggy" && iw dev "$ifname" del
 		return 1
 	}
 	if [ "$mode" = "sta" ]; then
@@ -666,7 +701,7 @@ mac80211_setup_supplicant_noctl() {
 	local enable=$1
 	local spobj="$(ubus -S list | grep wpa_supplicant.${ifname})"
 	wpa_supplicant_prepare_interface "$ifname" nl80211 || {
-		iw dev "$ifname" del
+		! mac80211_is_buggy_driver "$ifname" && iw dev "$ifname" del
 		return 1
 	}
 
@@ -867,7 +902,7 @@ mac80211_vap_cleanup() {
 	for wdev in $vaps; do
 		[ "$service" != "none" ] && ubus call ${service} config_remove "{\"iface\":\"$wdev\"}"
 		ip link set dev "$wdev" down 2>/dev/null
-		iw dev "$wdev" del
+		! mac80211_is_buggy_driver "$wdev" && iw dev "$wdev" del
 	done
 }
 
@@ -928,7 +963,7 @@ drv_mac80211_setup() {
 		done
 		if [ "$found" = "0" ]; then
 			ip link set dev "$wdev" down
-			iw dev "$wdev" del
+			! mac80211_is_buggy_driver "$wdev" && iw dev "$wdev" del
 		fi
 	done
 
