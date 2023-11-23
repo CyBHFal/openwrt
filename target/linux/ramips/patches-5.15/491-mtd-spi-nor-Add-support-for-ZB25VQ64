@@ -1,0 +1,12 @@
+--- a/drivers/mtd/spi-nor/zbit.c
++++ b/drivers/mtd/spi-nor/zbit.c
+@@ -9,6 +9,9 @@
+ 
+ static const struct flash_info zbit_parts[] = {
+ 	/* zbit */
++ 	 { "zb25vq64", INFO(0x5e4017, 0, 64 * 1024, 128,
++                            SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
++                            SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
+ 	{ "zb25vq128", INFO(0x5e4018, 0, 64 * 1024, 256,
+ 			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+ 			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
