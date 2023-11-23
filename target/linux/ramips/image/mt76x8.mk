@@ -1030,6 +1030,16 @@ define Device/xiaomi_mi-ra75
 endef
 TARGET_DEVICES += xiaomi_mi-ra75
 
+define Device/noname-wd204a
+  IMAGE_SIZE := 14976k
+  DEVICE_VENDOR := Noname
+  DEVICE_MODEL := Wifi Dual Band
+  DEVICE_VARIANT := WD204A
+  DEVICE_PACKAGES := kmod-mt76x2
+  SUPPORTED_DEVICES += noname,wd204a
+endef
+TARGET_DEVICES += noname-wd204a
+
 define Device/zbtlink_zbt-we1226
   IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Zbtlink

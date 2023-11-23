@@ -1,0 +1,144 @@
+#include "mt7628an.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+
+/ {
+       compatible = "noname,wd204a", "mediatek,mt7628an-soc";
+       model = "MT7628AN Wifi Extender with WD204A Board";
+
+        chosen {
+                bootargs = "console=ttyS0,57600n8 root=/dev/mtdblock5 print-fatal-signals=1";
+        };
+
+        aliases {
+                label-mac-device = &ethernet;
+        };
+
+        leds {
+                compatible = "gpio-leds";
+
+                extender {
+                        label = "green:extender";
+                        gpios = <&gpio 37 GPIO_ACTIVE_LOW>;
+                };
+                2_4g {
+                        label = "green:2_4g";
+                        gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
+                };
+        };
+
+
+        keys {
+                compatible = "gpio-keys";
+
+                wps {
+                        label = "wps";
+                        gpios = <&gpio 38 GPIO_ACTIVE_LOW>;
+                        linux,code = <KEY_WPS_BUTTON>;
+                };
+        };
+};
+
+&state_default {
+       gpio {
+               groups = "gpio", "refclk", "wdt", "wled_an", "uart1";
+               function = "gpio";
+       };
+};
+
+&spi0 {
+       status = "okay";
+
+       flash@0 {
+               compatible = "jedec,spi-nor";
+               reg = <0>;
+               spi-max-frequency = <10000000>;
+
+               partitions {
+                       compatible = "fixed-partitions";
+                       #address-cells = <1>;
+                       #size-cells = <1>;
+
+                       partition@0 {
+                               label = "u-boot";
+                               reg = <0x0 0x30000>;
+                               read-only;
+                       };
+
+                       partition@30000 {
+                               label = "u-boot-env";
+                               reg = <0x30000 0x10000>;
+                               read-only;
+                       };
+
+                       factory: partition@40000 {
+                               label = "factory";
+                               reg = <0x40000 0x10000>;
+                               read-only;
+                       };
+
+                       partition@50000 {
+                               compatible = "denx,uimage";
+                               label = "firmware";
+                               reg = <0x50000 0x7b0000>;
+                       };
+               };
+       };
+};
+
+&pcie {
+        status = "okay";
+};
+
+&pcie0 {
+        wifi@0,0 {
+                compatible = "mediatek,mt76";
+                reg = <0x0000 0 0 0 0>;
+                mediatek,mtd-eeprom = <&factory 0x8000>;
+                ieee80211-freq-limit = <5000000 6000000>;
+        };
+};
+
+&ethernet {
+        nvmem-cells = <&macaddr_factory_28>;
+        nvmem-cell-names = "mac-address";
+};
+
+&wmac {
+        mediatek,mtd-eeprom = <&factory 0x0>;
+	status = "okay";	
+};
+
+&esw {
+        mediatek,portmap = <0x3e>;
+ 	mediatek,portdisable = <0x37>;
+};
+
+&ehci {
+        status = "disabled";
+};
+
+&ohci {
+        status = "disabled";
+};
+
+&factory {
+        compatible = "nvmem-cells";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        macaddr_factory_4: macaddr@4 {
+                reg = <0x4 0x6>;
+        };
+
+        macaddr_factory_28: macaddr@28 {
+                reg = <0x28 0x6>;
+        };
+        macaddr_factory_8004: macaddr@8004 {
+                reg = <0x8004 0x6>;
+        };
+};
+
+
