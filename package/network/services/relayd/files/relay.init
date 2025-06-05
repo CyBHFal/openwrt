@@ -93,6 +93,10 @@ start_relay() {
 	config_get_bool fwd_dhcp "$cfg" forward_dhcp 1
 	[ $fwd_dhcp -eq 1 ] && procd_append_param command "-D"
 
+	procd_append_param command "-d"
+
+	procd_set_param stderr 1 # forward stderr of the command to logd
+
 	procd_close_instance
 }
 
