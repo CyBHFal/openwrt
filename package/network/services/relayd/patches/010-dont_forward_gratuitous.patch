@@ -1,0 +1,16 @@
+--- a/main.c
++++ b/main.c
+@@ -426,6 +426,13 @@ static void recv_arp_reply(struct relayd
+ 	if (memcmp(pkt->arp.arp_sha, rif->sll.sll_addr, ETH_ALEN) != 0)
+ 		relayd_refresh_host(rif, pkt->arp.arp_sha, pkt->arp.arp_spa);
+ 
++	if( !memcmp(pkt->arp.arp_tpa, pkt->arp.arp_spa, 4)) {
++		DPRINTF(2, "%s: do not forward a detected gratuitous ARP reply for host "IP_FMT" to itself\n",
++			rif->ifname,
++			IP_BUF(pkt->arp.arp_tpa));
++		return;
++	}
++
+ 	host = find_host_by_ipaddr(NULL, pkt->arp.arp_tpa);
+ 	if (!host)
+ 		return;
