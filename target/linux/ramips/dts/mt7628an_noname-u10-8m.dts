@@ -6,7 +6,7 @@
 
 / {
        compatible = "noname,u10-8m", "noname,u10-32m", "mediatek,mt7628an-soc";
-       model = "MT7628AN Wifi Extender with U10-1200M Board";
+       model = "MT7628AN Wifi Extender with U10-1200M Board (8M)";
 
         chosen {
                 bootargs = "console=ttyS0,57600n8 root=/dev/mtdblock5 print-fatal-signals=1";
