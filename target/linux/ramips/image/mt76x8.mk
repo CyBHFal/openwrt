@@ -1044,22 +1044,32 @@ TARGET_DEVICES += xiaomi_mi-ra75
 define Device/noname-wd204a
   IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Noname
-  DEVICE_MODEL := Wifi Dual Band
+  DEVICE_MODEL := Wifi Dual Band WD204A
   DEVICE_VARIANT := WD204A
   DEVICE_PACKAGES := kmod-mt76x2
   SUPPORTED_DEVICES += noname,wd204a
 endef
 TARGET_DEVICES += noname-wd204a
 
-define Device/noname-u10
+define Device/noname-u10-8m
   IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Noname
-  DEVICE_MODEL := Wifi Dual Band
-  DEVICE_VARIANT := U10
+  DEVICE_MODEL := Wifi Dual Band U10
+  DEVICE_VARIANT := 8M
   DEVICE_PACKAGES := kmod-mt76x2
-  SUPPORTED_DEVICES += noname,u10
+  SUPPORTED_DEVICES += noname,u10-8m
 endef
-TARGET_DEVICES += noname-u10
+TARGET_DEVICES += noname-u10-8m
+
+define Device/noname-u10-32m
+  IMAGE_SIZE := 32448k
+  DEVICE_VENDOR := Noname
+  DEVICE_MODEL := Wifi Dual Band U10
+  DEVICE_VARIANT := 32M
+  DEVICE_PACKAGES := kmod-mt76x2
+  SUPPORTED_DEVICES += noname,u10-32m
+endef
+TARGET_DEVICES += noname-u10-32m
 
 define Device/zbtlink_zbt-we1226
   IMAGE_SIZE := 7872k
