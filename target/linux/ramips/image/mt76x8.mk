@@ -1042,7 +1042,7 @@ endef
 TARGET_DEVICES += xiaomi_mi-ra75
 
 define Device/noname-wd204a
-  IMAGE_SIZE := 14976k
+  IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Noname
   DEVICE_MODEL := Wifi Dual Band
   DEVICE_VARIANT := WD204A
@@ -1052,7 +1052,7 @@ endef
 TARGET_DEVICES += noname-wd204a
 
 define Device/noname-u10
-  IMAGE_SIZE := 14976k
+  IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Noname
   DEVICE_MODEL := Wifi Dual Band
   DEVICE_VARIANT := U10
