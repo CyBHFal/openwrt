@@ -1,43 +1,78 @@
-#!/bin/sh /etc/rc.common
+#!/bin/sh
+# /etc/init.d/ucarp-procd
 
-START=50
+### BEGIN INIT INFO
+# Provides:          ucarp-procd
+# Required-Start:    $network
+# Default-Start:     99
+# Short-Description: UCARP VIP manager
+### END INIT INFO
+
+. /lib/functions.sh
+
+PROCD=1
 CONF=/etc/ucarp.conf
-IP=$(which ip)
-UCARP=$(which ucarp)
-ARPING=$(which arping)
 
 start() {
-	. ${CONF}
+    . ${CONF}
 
-	[ ${BACKGROUND} = 1 ] && daemon="--daemonize"
+    [ "${BACKGROUND}" = 1 ] && DAEMON_OPTS="--daemonize" || DAEMON_OPTS=""
 
-	cat > /var/run/ucarp-vip-up <<EOF
+    # If MYIP is empty, get the IP address of the interface via ubus
+    if [ -z "${MYIP}" ]; then
+        MYIP=$(ubus call network.interface."${IF}" status 2>/dev/null | \
+               jsonfilter -e '@["ipv4-address"][0].address')
+        if [ -z "$MYIP" ]; then
+            echo "Error: unable to retrieve IP of interface ${IF} via ubus"
+            return 1
+        else
+            echo "Detected IP for ${IF}: $MYIP"
+        fi
+    else
+        echo "Using MYIP from config: $MYIP"
+    fi
+
+    # Generate dynamic up/down scripts
+    mkdir -p /var/run/ucarp
+    cat > /var/run/ucarp/ucarp-vip-up <<EOF
 #!/bin/sh
-
-$IP addr add ${VIP}/${VMASK} dev ${IF}
-
+$(which ip) addr add ${VIP}/${VMASK} dev ${IF}
 EOF
-	for ip in ${PINGIP}
-	do
-	cat >> /var/run/ucarp-vip-up <<EOF
-$ARPING -c 2 -I ${IF} -s ${VIP} ${ip}
-EOF
-	done
-	chmod a+x /var/run/ucarp-vip-up
 
-	cat > /var/run/ucarp-vip-down <<EOF
+    for ping_ip in ${PINGIP}; do
+        cat >> /var/run/ucarp/ucarp-vip-up <<EOF
+$(which arping) -c 2 -I ${IF} -s ${VIP} ${ping_ip}
+EOF
+    done
+    chmod +x /var/run/ucarp/ucarp-vip-up
+
+    cat > /var/run/ucarp/ucarp-vip-down <<EOF
 #!/bin/sh
-
-$IP addr del ${VIP}/${VMASK} dev ${IF}
-
+$(which ip) addr del ${VIP}/${VMASK} dev ${IF}
 EOF
-	chmod a+x /var/run/ucarp-vip-down
+    chmod +x /var/run/ucarp/ucarp-vip-down
 
-	$UCARP --interface=${IF} --srcip=${MYIP} --vhid=1 --pass=${PASSWORD} \
-			--addr=${VIP} --nomcast $daemon \
-			--upscript=/var/run/ucarp-vip-up --downscript=/var/run/ucarp-vip-down
+    # Start UCARP under procd supervision
+    procd_open_instance
+    procd_set_param command $(which ucarp) \
+        --interface=${IF} \
+        --srcip=${MYIP} \
+        --vhid=1 \
+        --pass=${PASSWORD} \
+        --addr=${VIP} \
+        ${DAEMON_OPTS} \
+        ${OPTIONS} \
+        --upscript=/var/run/ucarp/ucarp-vip-up \
+        --downscript=/var/run/ucarp/ucarp-vip-down
+    procd_set_param respawn
+    procd_close_instance
+
+    echo "UCARP service started for VIP ${VIP} on interface ${IF}"
 }
 
 stop() {
-	killall ucarp
+    # Procd handles stopping; cleanup scripts
+    rm -rf /var/run/ucarp
+    echo "UCARP service stopped and scripts cleaned up"
 }
+
