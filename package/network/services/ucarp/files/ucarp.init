@@ -1,78 +1,103 @@
-#!/bin/sh
-# /etc/init.d/ucarp-procd
+#!/bin/sh /etc/rc.common
+#
+# UCARP Virtual IP manager using procd
+#
+# Compatible OpenWrt 23.05
+#
 
-### BEGIN INIT INFO
-# Provides:          ucarp-procd
-# Required-Start:    $network
-# Default-Start:     99
-# Short-Description: UCARP VIP manager
-### END INIT INFO
+USE_PROCD=1
+START=99
+STOP=10
 
-. /lib/functions.sh
-
-PROCD=1
+# Path to configuration file
 CONF=/etc/ucarp.conf
 
-start() {
-    . ${CONF}
+# Explicit paths to required binaries
+IP=/sbin/ip
+ARPING=/usr/bin/arping
+UCARP=/usr/sbin/ucarp
 
-    [ "${BACKGROUND}" = 1 ] && DAEMON_OPTS="--daemonize" || DAEMON_OPTS=""
+start_service() {
+    # Check config file exists
+    [ -f "$CONF" ] || {
+        echo "ucarp: configuration file $CONF not found"
+        return 1
+    }
 
-    # If MYIP is empty, get the IP address of the interface via ubus
-    if [ -z "${MYIP}" ]; then
-        MYIP=$(ubus call network.interface."${IF}" status 2>/dev/null | \
-               jsonfilter -e '@["ipv4-address"][0].address')
-        if [ -z "$MYIP" ]; then
-            echo "Error: unable to retrieve IP of interface ${IF} via ubus"
+    # Load configuration
+    . "$CONF"
+
+    # Validate mandatory parameters
+    [ -n "$IF" ] || { echo "ucarp: IF not set"; return 1; }
+    [ -n "$VIP" ] || { echo "ucarp: VIP not set"; return 1; }
+    [ -n "$VMASK" ] || { echo "ucarp: VMASK not set"; return 1; }
+    [ -n "$PASSWORD" ] || { echo "ucarp: PASSWORD not set"; return 1; }
+
+    # Determine Linux interface device name via ubus
+    IFACE=$(ubus call network.interface."$IF" status 2>/dev/null | jsonfilter -e '@.device')
+    [ -n "$IFACE" ] || {
+        echo "ucarp: cannot determine Linux device for interface $IF"
+        return 1
+    }
+
+    # Determine source IP: use MYIP from config, otherwise detect via ubus
+    if [ -z "$MYIP" ]; then
+        MYIP=$(ubus call network.interface."$IF" status 2>/dev/null \
+            | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
+        [ -n "$MYIP" ] || {
+            echo "ucarp: unable to determine IP address for interface $IF"
             return 1
-        else
-            echo "Detected IP for ${IF}: $MYIP"
-        fi
+        }
+        echo "Detected MYIP=$MYIP on interface $IF"
     else
-        echo "Using MYIP from config: $MYIP"
+        echo "Using configured MYIP=$MYIP"
     fi
 
-    # Generate dynamic up/down scripts
+    # Create runtime directory
     mkdir -p /var/run/ucarp
-    cat > /var/run/ucarp/ucarp-vip-up <<EOF
+
+    # Create VIP up script
+    cat > /var/run/ucarp/vip-up.sh <<EOF
 #!/bin/sh
-$(which ip) addr add ${VIP}/${VMASK} dev ${IF}
+$IP addr add $VIP/$VMASK dev $IFACE
 EOF
 
-    for ping_ip in ${PINGIP}; do
-        cat >> /var/run/ucarp/ucarp-vip-up <<EOF
-$(which arping) -c 2 -I ${IF} -s ${VIP} ${ping_ip}
+    # Optional ARP announcements
+    for ping_ip in $PINGIP; do
+        cat >> /var/run/ucarp/vip-up.sh <<EOF
+$ARPING -c 2 -I $IFACE -s $VIP $ping_ip
 EOF
     done
-    chmod +x /var/run/ucarp/ucarp-vip-up
+    chmod +x /var/run/ucarp/vip-up.sh
 
-    cat > /var/run/ucarp/ucarp-vip-down <<EOF
+    # Create VIP down script
+    cat > /var/run/ucarp/vip-down.sh <<EOF
 #!/bin/sh
-$(which ip) addr del ${VIP}/${VMASK} dev ${IF}
+$IP addr del $VIP/$VMASK dev $IFACE 2>/dev/null
 EOF
-    chmod +x /var/run/ucarp/ucarp-vip-down
+    chmod +x /var/run/ucarp/vip-down.sh
 
     # Start UCARP under procd supervision
     procd_open_instance
-    procd_set_param command $(which ucarp) \
-        --interface=${IF} \
-        --srcip=${MYIP} \
+    procd_set_param command $UCARP \
+        --interface=$IFACE \
+        --srcip=$MYIP \
         --vhid=1 \
-        --pass=${PASSWORD} \
-        --addr=${VIP} \
-        ${DAEMON_OPTS} \
-        ${OPTIONS} \
-        --upscript=/var/run/ucarp/ucarp-vip-up \
-        --downscript=/var/run/ucarp/ucarp-vip-down
-    procd_set_param respawn
+        --pass=$PASSWORD \
+        --addr=$VIP \
+        $OPTIONS \
+        --upscript=/var/run/ucarp/vip-up.sh \
+        --downscript=/var/run/ucarp/vip-down.sh
+    procd_set_param respawn 3600 5 5
     procd_close_instance
 
-    echo "UCARP service started for VIP ${VIP} on interface ${IF}"
+    echo "UCARP started: VIP $VIP on interface $IFACE (MYIP=$MYIP)"
 }
 
-stop() {
-    # Procd handles stopping; cleanup scripts
+stop_service() {
+    # procd handles termination
+    # Clean up runtime scripts
     rm -rf /var/run/ucarp
-    echo "UCARP service stopped and scripts cleaned up"
+    echo "UCARP stopped"
 }
 
