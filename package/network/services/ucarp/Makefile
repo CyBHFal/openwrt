@@ -23,7 +23,7 @@ define Package/ucarp
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Lets several hosts share one IP
-  DEPENDS:=+ip +libpcap
+  DEPENDS:=+ip +libpcap +!BUSYBOX_CONFIG_ARPING:iputils-arping
   URL:=http://www.ucarp.org/project/ucarp
 endef
 
