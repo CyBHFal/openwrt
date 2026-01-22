@@ -53,30 +53,6 @@ start_service() {
         echo "Using configured MYIP=$MYIP"
     fi
 
-    # Create runtime directory
-    mkdir -p /var/run/ucarp
-
-    # Create VIP up script
-    cat > /var/run/ucarp/vip-up.sh <<EOF
-#!/bin/sh
-$IP addr add $VIP/$VMASK dev $IFACE
-EOF
-
-    # Optional ARP announcements
-    for ping_ip in $PINGIP; do
-        cat >> /var/run/ucarp/vip-up.sh <<EOF
-$ARPING -c 2 -I $IFACE -s $VIP $ping_ip
-EOF
-    done
-    chmod +x /var/run/ucarp/vip-up.sh
-
-    # Create VIP down script
-    cat > /var/run/ucarp/vip-down.sh <<EOF
-#!/bin/sh
-$IP addr del $VIP/$VMASK dev $IFACE 2>/dev/null
-EOF
-    chmod +x /var/run/ucarp/vip-down.sh
-
     # Start UCARP under procd supervision
     procd_open_instance
     procd_set_param command $UCARP \
@@ -86,8 +62,8 @@ EOF
         --pass=$PASSWORD \
         --addr=$VIP \
         $OPTIONS \
-        --upscript=/var/run/ucarp/vip-up.sh \
-        --downscript=/var/run/ucarp/vip-down.sh
+        --upscript=/usr/share/ucarp/vip-up.sh \
+        --downscript=/usr/share/ucarp/vip-down.sh
     procd_set_param respawn 3600 5 5
     procd_close_instance
 

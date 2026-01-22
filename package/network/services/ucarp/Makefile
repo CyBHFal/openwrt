@@ -44,6 +44,10 @@ define Package/ucarp/install
 	$(INSTALL_BIN) ./files/ucarp.init $(1)/etc/init.d/ucarp
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/ucarp $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/usr/share/ucarp
+	$(INSTALL_DIR) $(1)/etc/ucarp.d
+	$(INSTALL_BIN) ./files/ucarp-vip-up.sh $(1)/usr/share/ucarp/vip-up.sh
+	$(INSTALL_BIN) ./files/ucarp-vip-down.sh $(1)/usr/share/ucarp/vip-down.sh
 endef
 
 $(eval $(call BuildPackage,ucarp))
