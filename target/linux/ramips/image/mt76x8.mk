@@ -1041,15 +1041,25 @@ define Device/xiaomi_mi-ra75
 endef
 TARGET_DEVICES += xiaomi_mi-ra75
 
-define Device/noname-wd204a
+define Device/noname-wd204a-8m
   IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Noname
   DEVICE_MODEL := Wifi Dual Band WD204A
-  DEVICE_VARIANT := WD204A
+  DEVICE_VARIANT := 8M
   DEVICE_PACKAGES := kmod-mt76x2
-  SUPPORTED_DEVICES += noname,wd204a
+  SUPPORTED_DEVICES += noname,wd204a-8m
 endef
-TARGET_DEVICES += noname-wd204a
+TARGET_DEVICES += noname-wd204a-8m
+
+define Device/noname-wd204a-32m
+  IMAGE_SIZE := 32448k
+  DEVICE_VENDOR := Noname
+  DEVICE_MODEL := Wifi Dual Band WD204A
+  DEVICE_VARIANT := 32M
+  DEVICE_PACKAGES := kmod-mt76x2
+  SUPPORTED_DEVICES += noname,wd204a-32m
+endef
+TARGET_DEVICES += noname-wd204a-32m
 
 define Device/noname-u10-8m
   IMAGE_SIZE := 7872k
